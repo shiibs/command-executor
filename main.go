@@ -1,13 +1,16 @@
 package main
 
 import (
+	"embed"
 	"log"
 	"net/http"
 	"os/exec"
-	"runtime"
 
 	"github.com/gin-gonic/gin"
 )
+
+//go:embed static/index.html
+var content embed.FS
 
 type CommandRequest struct {
 	Command string `json:"command"`
@@ -19,13 +22,7 @@ type CommandResponse struct {
 }
 
 func executeCommand(command string) (string, error) {
-	var cmd *exec.Cmd
-
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd.exe", "/C", command)
-	} else {
-		cmd = exec.Command("sh", "-c", command)
-	}
+	cmd := exec.Command("sh", "-c", command)
 
 	output, err := cmd.CombinedOutput()
 	return string(output), err
@@ -34,8 +31,14 @@ func executeCommand(command string) (string, error) {
 func main() {
 	router := gin.Default()
 
-	// Serve the static HTML file
-	router.StaticFile("/", "./static/index.html")
+	router.GET("/", func(c *gin.Context) {
+		file, err := content.ReadFile("static/index.html")
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Error reading file: %v", err)
+			return
+		}
+		c.Data(http.StatusOK, "text/html", file)
+	})
 
 	// POST API to execute commands
 	router.POST("/api/execute", func(c *gin.Context) {
