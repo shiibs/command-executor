@@ -1,10 +1,16 @@
 package model
 
-// type CommandRequest struct {
-// 	Command string `json:"command"`
-// }
+type CommandRequest struct {
+	Command string `json:"command"`
+}
 
-// type CommandReponse struct {
-// 	Output string `json:"output"`
-// 	Error  string `json:"error"`
-// }
+type CommandResponse struct {
+	Output string `json:"output,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+type CommandStatus struct {
+	Output string
+	Error  string
+	Done   bool
+}
