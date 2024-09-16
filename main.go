@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,11 +23,35 @@ type CommandResponse struct {
 	Error  string `json:"error,omitempty"`
 }
 
-func executeCommand(command string) (string, error) {
-	cmd := exec.Command("sh", "-c", command)
+type CommandStatus struct {
+	Output string
+	Error  string
+	Done   bool
+}
 
+var (
+	commandStatuses = make(map[string]*CommandStatus)
+	mutex           sync.Mutex
+)
+
+func executeCommand(command string, id string) {
+	cmd := exec.Command("sh", "-c", command)
 	output, err := cmd.CombinedOutput()
-	return string(output), err
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	status, exists := commandStatuses[id]
+	if !exists {
+		return
+	}
+
+	status.Output = string(output)
+	if err != nil {
+		status.Error = err.Error()
+	}
+
+	status.Done = true
 }
 
 func main() {
@@ -48,11 +74,32 @@ func main() {
 			return
 		}
 
-		output, err := executeCommand(req.Command)
-		if err != nil {
-			c.JSON(http.StatusOK, CommandResponse{Output: output, Error: err.Error()})
+		id := time.Now().Format("20060102150405")
+		status := &CommandStatus{}
+		mutex.Lock()
+		commandStatuses[id] = status
+		mutex.Unlock()
+
+		go executeCommand(req.Command, id)
+		c.JSON(http.StatusOK, gin.H{"id": id})
+	})
+
+	router.GET("api/status/:id", func(c *gin.Context) {
+		id := c.Param("id")
+
+		mutex.Lock()
+		status, exists := commandStatuses[id]
+		mutex.Unlock()
+
+		if !exists {
+			c.JSON(http.StatusNotFound, CommandResponse{Error: "Command not founc"})
+			return
+		}
+
+		if status.Done {
+			c.JSON(http.StatusOK, CommandResponse{Output: status.Output, Error: status.Error})
 		} else {
-			c.JSON(http.StatusOK, CommandResponse{Output: output})
+			c.JSON(http.StatusOK, CommandResponse{Error: "Command is still running"})
 		}
 	})
 

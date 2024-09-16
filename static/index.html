@@ -5,39 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Command Executor</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-      }
-      .container {
-        max-width: 600px;
+      /* Basic styling for loader and other elements */
+      #loader {
+        display: none;
+        border: 16px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 16px solid #3498db;
+        width: 60px;
+        height: 60px;
+        animation: spin 2s linear infinite;
         margin: auto;
       }
-      input,
-      button {
-        width: 100%;
-        padding: 10px;
-        margin: 10px 0;
-      }
-      .output {
-        white-space: pre-wrap;
-        background: #f9f9f9;
-        padding: 10px;
-        border: 1px solid #ddd;
-      }
-      .loader {
-        display: none;
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <h1>Command Executor</h1>
-      <input type="text" id="command" placeholder="Enter command" />
-      <button id="sendBtn">Send</button>
-      <div class="loader" id="loader">Loading...</div>
-      <div class="output" id="output"></div>
-    </div>
+    <h1>Command Executor</h1>
+    <input type="text" id="command" placeholder="Enter command" />
+    <button id="sendBtn">Send</button>
+    <div id="loader"></div>
+    <pre id="output"></pre>
+
     <script>
       document.getElementById("sendBtn").addEventListener("click", function () {
         var command = document.getElementById("command").value;
@@ -56,12 +52,30 @@
         })
           .then((response) => response.json())
           .then((data) => {
-            loader.style.display = "none";
-            if (data.error) {
-              output.textContent = "Error: " + data.error;
-            } else {
-              output.textContent = "Output: " + data.output;
-            }
+            var id = data.id;
+            var pollInterval = setInterval(function () {
+              fetch(`/api/status/${id}`)
+                .then((response) => response.json())
+                .then((data) => {
+                  if (data.error === "Command is still running") {
+                    // Continue polling
+                    return;
+                  }
+
+                  loader.style.display = "none";
+                  clearInterval(pollInterval);
+                  if (data.error) {
+                    output.textContent = "Error: " + data.error;
+                  } else {
+                    output.textContent = "Output: " + data.output;
+                  }
+                })
+                .catch((error) => {
+                  loader.style.display = "none";
+                  clearInterval(pollInterval);
+                  output.textContent = "Error: " + error.message;
+                });
+            }, 1000);
           })
           .catch((error) => {
             loader.style.display = "none";
