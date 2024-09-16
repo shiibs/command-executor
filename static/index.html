@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Command Executor</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+      }
+      input,
+      button {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+      }
+      .output {
+        white-space: pre-wrap;
+        background: #f9f9f9;
+        padding: 10px;
+        border: 1px solid #ddd;
+      }
+      .loader {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Command Executor</h1>
+      <input type="text" id="command" placeholder="Enter command" />
+      <button id="sendBtn">Send</button>
+      <div class="loader" id="loader">Loading...</div>
+      <div class="output" id="output"></div>
+    </div>
+    <script>
+      document.getElementById("sendBtn").addEventListener("click", function () {
+        var command = document.getElementById("command").value;
+        var loader = document.getElementById("loader");
+        var output = document.getElementById("output");
+
+        loader.style.display = "block";
+        output.textContent = "";
+
+        fetch("/api/execute", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ command: command }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            loader.style.display = "none";
+            if (data.error) {
+              output.textContent = "Error: " + data.error;
+            } else {
+              output.textContent = "Output: " + data.output;
+            }
+          })
+          .catch((error) => {
+            loader.style.display = "none";
+            output.textContent = "Error: " + error.message;
+          });
+      });
+    </script>
+  </body>
+</html>
